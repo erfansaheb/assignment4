@@ -98,21 +98,24 @@ def findBestPosForDel(call, Vnum, Vcalls, prob):
     i_best = 0
     for i in range(PickIndex+1, len(Vcalls)+1):
         new_sol = np.insert(Vcalls, i, call)
-        feasibility, c, new_cost = cap_TW_4V(Vnum, new_sol, prob)
-        if not c=='Feasible':
-            # continue
-            if int(c[-1]) == PickIndex or int(c[-1]) == i:
-                break
-            elif int(c[-1]) > PickIndex and int(c[-1]) < i:
-                break
-        else:
+        new_feasibility, new_c, new_cost = cap_TW_4V(Vnum, new_sol, prob)
+        if new_c=='Feasible':
+            c = new_c
+            feasibility = new_feasibility
             if i == len(Vcalls):
-                return i, new_cost, feasibility, c
+                return i, new_cost, feasibility, new_c
             elif new_cost < best_cost:
                 # best_sol = new_sol
                 best_cost = new_cost
                 i_best = i
-    return i_best, best_cost, feasibility, c
+        else:
+            if (int(new_c[-1]) == PickIndex or int(new_c[-1]) == i) or \
+                (int(new_c[-1]) > PickIndex and int(new_c[-1]) < i):
+                break
+    try:
+        return i_best, best_cost, feasibility, c
+    except:
+        return i_best, best_cost, new_feasibility, new_c
 
 def one_ins_first_best(sol, costs, prob):
     Solution = np.append(sol, [0])
@@ -377,22 +380,12 @@ def SA(init_sol, init_cost, probability, operators, cost_func, prob, T_f = 0.1, 
     best_sol = init_sol
     cost_incumb = init_cost#cost_func(incumbent, prob)
     costs = np.concatenate((np.zeros(prob['n_vehicles']), [init_cost]))
-    # costs = np.array([297728, 181479, 404536, 262411])
     best_cost = cost_incumb 
     delta = []
     for w in range(warm_up):
         operator = np.random.choice(operators, replace=True, p=probability )
-# =============================================================================
-#         if w == 13:
-#             print('here')
-# =============================================================================
         new_sol, new_costs = operator(incumbent, costs.copy(), prob)
         new_cost = new_costs.sum()
-# =============================================================================
-#         print(w,cost_func(new_sol, prob)-new_cost)
-#         if cost_func(new_sol, prob)-new_cost != 0:
-#             print('here')
-# =============================================================================
         delta_E = new_cost - cost_incumb
         feasiblity, c = True, 'Feasible'
         if feasiblity and delta_E < 0:
@@ -421,10 +414,6 @@ def SA(init_sol, init_cost, probability, operators, cost_func, prob, T_f = 0.1, 
 
         new_sol, new_costs = operator(incumbent, costs.copy(), prob)
         new_cost = new_costs.sum()
-# =============================================================================
-#         if cost_func(new_sol, prob)-new_cost != 0:
-#             print('here')
-# =============================================================================
         delta_E = new_cost - cost_incumb
         feasiblity, c = True, 'Feasible'
         if feasiblity and delta_E < 0:
@@ -456,79 +445,80 @@ def localSearch(init_sol, probability, operators, cost_func, prob, warm_up = Non
             best_cost = new_cost
     return best_sol, best_cost
 
+if __name__ == '__main__':
+    problems = [
+                # 'Call_7_Vehicle_3',
+                # 'Call_18_Vehicle_5',
+                # 'Call_35_Vehicle_7',
+                # 'Call_80_Vehicle_20',
+                # 'Call_130_Vehicle_40',
+                'Call_300_Vehicle_90'
+                ]
+    operators = [
+        one_ins_best,
+        one_ins_first_best, 
+        multi_ins_new
+        ]
+    probabilities = [
+        [1/len(operators) for i in operators],
+        [5/12,1/6,5/12]
+        ]
+    
+    repeat = 10
+    for j, p in enumerate(problems):
+        info = pd.DataFrame(columns=['problem','probability', 'solution', 'average_objective', 'best_objective',
+                                      'improvement', 'running_time'])
+        for prb in probabilities:
+            start = time()
 # =============================================================================
-# if __name__ == '__main__':
-#     problems = [
-#                 'Call_7_Vehicle_3',
-#                 # 'Call_18_Vehicle_5',
-#                 # 'Call_35_Vehicle_7',
-#                 # 'Call_80_Vehicle_20',
-#                 # 'Call_130_Vehicle_40',
-#                 # 'Call_300_Vehicle_90'
-#                 ]
-#     operators = [
-#         one_ins_best,
-#         one_ins_first_best, 
-#         multi_ins_new
-#         ]
-#     probabilities = [
-#         [1/len(operators) for i in operators],
-#         # [5/12,1/6,5/12]
-#         ]
-#     
-#     repeat = 10
-#     for j, p in enumerate(problems):
-#         info = pd.DataFrame(columns=['problem','probability', 'solution', 'average_objective', 'best_objective',
-#                                       'improvement', 'running_time'])
-#         for prb in probabilities:
-#             start = time()
-# # =============================================================================
-# #             update this later before submission
-# # =============================================================================
-#             prob = load_problem( "..//..//Data//" +p+ ".txt")
-#             initial_sol = np.array([0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)])
-#             init_cost = cost_function(initial_sol, prob)
-#             best_sol, best_cost = np.empty((repeat ,len(initial_sol)),dtype=int), np.empty(repeat )
-#             for i in range(repeat ):
-#                 np.random.seed(23+i)
-#                 # print('seed', 23+i)
-#                 best_sol[i], best_cost[i] = SA(initial_sol, init_cost, prb, operators, cost_function, prob, warm_up = 100)
-#                 # print(best_sol[i],best_cost[i])
-#             info = info.append({'problem': str(j),
-#                                 'probability': prb,
-#                                 'solution': best_sol[np.argmin(best_cost)],
-#                                 'average_objective': np.mean(best_cost),
-#                                 'best_objective':np.min(best_cost),
-#                                 'improvement': 100*((init_cost-np.min(best_cost))/init_cost),
-#                                 'running_time': (time()-start)/10}, ignore_index=True)
-#                 # print(info)
-#         info.astype({'average_objective': float,
-#                             'best_objective':int,
-#                             'improvement': float,
-#                             'running_time': float}).set_index('problem').to_csv('results'+str(j)+'.csv')
+#             update this later before submission
 # =============================================================================
-np.random.seed(23)
-prob = load_problem( "..//..//Data//" +'Call_7_Vehicle_3'+ ".txt")
-# # # # findBestPosForDel(2,1,np.array([2, 9, 9]),prob)
-# sol = np.array([4, 4, 2, 2, 0, 7, 7, 0, 1, 5, 5, 3, 3, 1, 0, 6, 6 ])
-sol = np.array([0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)])
-init_cost = cost_function(sol, prob)
-# a = one_ins_best(sol, prob)
-start = time()
-# a = SA(sol,init_cost, 
-#         [0,0,1],
-#        # [1/3,1/3,1/3],
-#        [
-#         one_ins_best,
-#                 one_ins_first_best, 
-#                 multi_ins_new], cost_function, prob)
-# # for i in range(288):
-# #     np.random.randint(1)
-b = []
-for i in range(10):
-    b.append(SA(sol,init_cost, [1/3,1/3,1/3],[
-            one_ins_best,
-                    one_ins_first_best, 
-                    multi_ins_new], cost_function, prob))
-print(time()-start)
-# two_ex(sol, prob)
+            prob = load_problem( "..//..//Data//" +p+ ".txt")
+            initial_sol = np.array([0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)])
+            init_cost = cost_function(initial_sol, prob)
+            best_sol, best_cost = np.empty((repeat ,len(initial_sol)),dtype=int), np.empty(repeat )
+            for i in range(repeat ):
+                np.random.seed(23+i)
+                # print('seed', 23+i)
+                best_sol[i], best_cost[i] = SA(initial_sol, init_cost, prb, operators, cost_function, prob, warm_up = 100)
+                # print(best_sol[i],best_cost[i])
+            info = info.append({'problem': str(j),
+                                'probability': prb,
+                                'solution': best_sol[np.argmin(best_cost)],
+                                'average_objective': np.mean(best_cost),
+                                'best_objective':np.min(best_cost),
+                                'improvement': 100*((init_cost-np.min(best_cost))/init_cost),
+                                'running_time': (time()-start)/10}, ignore_index=True)
+                # print(info)
+        info.astype({'average_objective': float,
+                            'best_objective':int,
+                            'improvement': float,
+                            'running_time': float}).set_index('problem').to_csv('results'+str(5)+'.csv')
+# =============================================================================
+# np.random.seed(23)
+# prob = load_problem( "..//..//Data//" +'Call_7_Vehicle_3'+ ".txt")
+# # # # # findBestPosForDel(2,1,np.array([2, 9, 9]),prob)
+# # sol = np.array([4, 4, 2, 2, 0, 7, 7, 0, 1, 5, 5, 3, 3, 1, 0, 6, 6 ])
+# sol = np.array([0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)])
+# init_cost = cost_function(sol, prob)
+# # a = one_ins_best(sol, prob)
+# start = time()
+# # a = SA(sol,init_cost, 
+# #         [0,0,1],
+# #        # [1/3,1/3,1/3],
+# #        [
+# #         one_ins_best,
+# #                 one_ins_first_best, 
+# #                 multi_ins_new], cost_function, prob)
+# # # for i in range(288):
+# # #     np.random.randint(1)
+# b = []
+# for i in range(10):
+#     b.append(SA(sol,init_cost, [1/3,1/3,1/3],[
+#             one_ins_best,
+#                     one_ins_first_best, 
+#                     multi_ins_new], cost_function, prob))
+# print(time()-start)
+# # two_ex(sol, prob)
+# 
+# =============================================================================
