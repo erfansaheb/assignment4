@@ -16,7 +16,7 @@ def cost4V(Vnum, Vcalls, problem):
     TravelCost = problem['TravelCost']
     PortCost = problem['PortCost']
     
-    Vcalls = Vcalls - 1
+    Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))]#Vcalls - 1
     
     sortRout = np.sort(Vcalls, kind='mergesort')
     I = np.argsort(Vcalls, kind='mergesort')
@@ -44,7 +44,7 @@ def cap_TW_4V(Vnum, Vcalls, features, p_ind, d_ind, problem): #Capacity and time
     TravelTime = problem['TravelTime']
     FirstTravelTime = problem['FirstTravelTime']
 
-    Vcalls = Vcalls - 1
+    Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))] #Vcalls - 1
     call = Vcalls[p_ind]
     
     NoDoubleCallOnVehicle = len(Vcalls)
@@ -55,10 +55,10 @@ def cap_TW_4V(Vnum, Vcalls, features, p_ind, d_ind, problem): #Capacity and time
     LoadSize1[Vnum][p_ind] = Cargo[call, 2]
     LoadSize1[Vnum][d_ind] = -Cargo[call, 2]
     
-    Timewindows1[Vnum][0, p_ind] = Cargo[call, 4]
-    Timewindows1[Vnum][0, d_ind] = Cargo[call, 6]
-    Timewindows1[Vnum][1, p_ind] = Cargo[call, 5]
-    Timewindows1[Vnum][1, d_ind] = Cargo[call, 7]
+    Timewindows1[Vnum][0][p_ind] = Cargo[call, 4]
+    Timewindows1[Vnum][0][d_ind] = Cargo[call, 6]
+    Timewindows1[Vnum][1][p_ind] = Cargo[call, 5]
+    Timewindows1[Vnum][1][d_ind] = Cargo[call, 7]
     
     PortIndex1[Vnum][p_ind] = Cargo[call, 0].astype(int) - 1
     PortIndex1[Vnum][d_ind] = Cargo[call, 1].astype(int) - 1 
@@ -68,37 +68,12 @@ def cap_TW_4V(Vnum, Vcalls, features, p_ind, d_ind, problem): #Capacity and time
     
     features = [LoadSize1, Timewindows1, PortIndex1, LU_Time1]
     
-# =============================================================================
-#     LoadSize = 0
-#     sortRout = np.sort(Vcalls, kind='mergesort')
-#     I = np.argsort(Vcalls, kind='mergesort')
-#     Indx = np.argsort(I, kind='mergesort')
-#     LoadSize -= Cargo[sortRout, 2]
-#     LoadSize[::2] = Cargo[sortRout[::2], 2]
-#     LoadSize = LoadSize[Indx]
-#     Timewindows = np.zeros((2, NoDoubleCallOnVehicle))
-#     Timewindows[0] = Cargo[sortRout, 6]
-#     Timewindows[0, ::2] = Cargo[sortRout[::2], 4]
-#     Timewindows[1] = Cargo[sortRout, 7]
-#     Timewindows[1, ::2] = Cargo[sortRout[::2], 5]
-#     Timewindows = Timewindows[:, Indx]
-#     
-#     PortIndex = Cargo[sortRout, 1].astype(int)
-#     PortIndex[::2] = Cargo[sortRout[::2], 0]
-#     PortIndex = PortIndex[Indx] - 1
-# =============================================================================
-    
     Diag_cost = TravelCost[Vnum, PortIndex1[Vnum][:-1], PortIndex1[Vnum][1:]]
     
     FirstVisitCost = FirstTravelCost[Vnum, int(Cargo[Vcalls[0], 0] - 1)]
     RouteTravelCost = np.sum(np.hstack((FirstVisitCost, Diag_cost.flatten())))
     CostInPorts = np.sum(PortCost[Vnum, Vcalls]) / 2
-    
-# =============================================================================
-#     LU_Time = UnloadingTime[Vnum, sortRout]
-#     LU_Time[::2] = LoadingTime[Vnum, sortRout[::2]]
-#     LU_Time = LU_Time[Indx]
-# =============================================================================
+
     Diag = TravelTime[Vnum, PortIndex1[Vnum][:-1], PortIndex1[Vnum][1:]]
     FirstVisitTime = FirstTravelTime[Vnum, int(Cargo[Vcalls[0], 0] - 1)]
     
@@ -108,8 +83,8 @@ def cap_TW_4V(Vnum, Vcalls, features, p_ind, d_ind, problem): #Capacity and time
     for j in range(NoDoubleCallOnVehicle):
         if VesselCapacity[Vnum] - np.cumsum(LoadSize1[Vnum])[j] < 0:
             return False, 'Capacity exceeded at call {}'.format(j), np.inf, features
-        ArriveTime[j] = np.max((currentTime + RouteTravelTime[j], Timewindows1[Vnum][0, j]))
-        if ArriveTime[j] > Timewindows1[Vnum][1, j]:
+        ArriveTime[j] = np.max((currentTime + RouteTravelTime[j], Timewindows1[Vnum][0][j]))
+        if ArriveTime[j] > Timewindows1[Vnum][1][j]:
             return False, 'Time window exceeded at call {}'.format(j), np.inf, features
         currentTime = ArriveTime[j] + LU_Time1[Vnum][j]
     return True, 'Feasible', CostInPorts + RouteTravelCost, features
@@ -128,7 +103,7 @@ def findBestPosForDel(call, Vnum, Vcalls, pos, features, prob):
     best_cost = np.inf
     i_best = 0
     for i in range(PickIndex+1, len(Vcalls)+1):
-        new_sol = np.insert(Vcalls, i, call)
+        new_sol = Vcalls[:i] + [call] + Vcalls[i:] #np.insert(Vcalls, i, call)
         updated_features = features_insert(deepcopy(features), Vnum, PickIndex, i)
         new_feasibility, new_c, new_cost, new_features = cap_TW_4V(Vnum, new_sol, updated_features, PickIndex, i, prob)
         if new_c=='Feasible':
@@ -151,7 +126,7 @@ def findBestPosForDel(call, Vnum, Vcalls, pos, features, prob):
         return i_best, best_cost, new_feasibility, new_c, new_features
 
 def one_ins_first_best(sol, costs, features, prob):
-    Solution = np.append(sol, [0])
+    Solution = sol + [0]#np.append(sol, [0])
 # =============================================================================
 #     if np.random.random()< 0.30:
 #         selection_prob = np.sum(1-prob['VesselCargo'], axis = 0)/np.sum(1-prob['VesselCargo'])
@@ -162,13 +137,13 @@ def one_ins_first_best(sol, costs, features, prob):
     # selected_call = np.random.choice(np.arange(1,prob['n_calls']+1), p = selection_prob)
     selected_call = np.random.choice(np.arange(1,prob['n_calls']+1))
     call_locs = np.where(Solution==selected_call)[0]
-    ZeroIndexBef = np.array(np.where(Solution == 0)[0], dtype=int)
+    ZeroIndexBef = np.array(np.where(Solution == np.array(0))[0], dtype=int)
     len_v = [ZeroIndexBef[0]] + [j-i-1 for i, j in zip(ZeroIndexBef[:-1], ZeroIndexBef[1:])]
     cur_v = len(ZeroIndexBef[ZeroIndexBef<call_locs[0]])
     if cur_v == prob['n_vehicles']:
         cur_cost = prob['Cargo'][selected_call-1,3]
     else:
-        sol_2 = np.delete(Solution, call_locs)
+        sol_2 = Solution[:call_locs[0]] + Solution[call_locs[0]+1:call_locs[1]] + Solution[call_locs[1]+1:]#np.delete(Solution, call_locs)
         cur_cost = cost4V(cur_v, Solution[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]], prob) - \
             (cost4V(cur_v, sol_2[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]-2], prob) if 
              ZeroIndexBef[cur_v]-2 >ZeroIndexBef[cur_v]-len_v[cur_v] else 0 )
@@ -178,42 +153,50 @@ def one_ins_first_best(sol, costs, features, prob):
     costs[-1] += prob['Cargo'][selected_call-1,3]
     best_sol = Solution
     best_features = features
-    Solution = np.delete(Solution, call_locs)
-    ZeroIndex = np.array(np.where(Solution == 0)[0], dtype=int)
-    avail_vehs = np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
+    Solution = Solution[:call_locs[0]] + Solution[call_locs[0]+1:call_locs[1]] + Solution[call_locs[1]+1:]#np.delete(Solution, call_locs)
+    ZeroIndex = np.array(np.where(Solution == np.array(0))[0], dtype=int)
+    avail_vehs = [i for i in range(prob['n_vehicles']) if prob['VesselCargo'][i,selected_call-1] == 1]+ [prob['n_vehicles']]#np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
     len_v = [ZeroIndex[0]] + [j-i-1 for i, j in zip(ZeroIndex[:-1], ZeroIndex[1:])]
     best_v = prob['n_vehicles']
     best_cost = np.inf
     for v in avail_vehs:
         if v == prob['n_vehicles']:
             if best_cost >= prob['Cargo'][selected_call-1,3]:
-                best_sol = np.insert(Solution,-1, [selected_call,selected_call])
+                best_sol = Solution[:-1] + [selected_call,selected_call] + Solution[-1:] #np.insert(Solution,-1, [selected_call,selected_call])
                 break
             continue
         for pos in range(len_v[v]+1):
             cost_v = costs[v]
-            new_sol = np.insert(Solution,ZeroIndex[v]+ pos - len_v[v] , selected_call)
+            new_sol = Solution[:ZeroIndex[v]+ pos - len_v[v]] +[selected_call]+ Solution[ZeroIndex[v]+ pos - len_v[v]:]
+            #np.insert(Solution, ZeroIndex[v]+ pos - len_v[v]], selected_call)
+# =============================================================================
+#             
+# =============================================================================
             del_idx, new_cost, feasibility, c, new_features = \
                 findBestPosForDel(selected_call, v, new_sol[ZeroIndex[v]-len_v[v]:ZeroIndex[v]+1],
                                   pos, features.copy(), prob)
             if not c.startswith('F'):
                 if int(c[-1]) == pos or int(c[-1]) == del_idx:
-                    Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                    Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                    #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                     if c.startswith('T'):
                         break
                     else:
                         continue
                 else:
-                    Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                    Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                    #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                     continue
             if new_cost - cost_v <= best_cost:
-                best_sol = np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
+                best_sol = new_sol[:ZeroIndex[v]-len_v[v]+ del_idx] +[selected_call]+ new_sol[ZeroIndex[v]-len_v[v]+ del_idx:]
+                #np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
                 best_cost = new_cost - cost_v
                 best_v = v
                 best_features = new_features
                 break
             else:
-               Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+               Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+               #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
 # =============================================================================
 #         if best_v != prob['n_vehicles']:
 #             break
@@ -227,7 +210,7 @@ def one_ins_first_best(sol, costs, features, prob):
     return best_sol [:-1], costs, best_features
 
 def one_ins_best(sol, costs, features, prob):
-    Solution = np.append(sol, [0])
+    Solution = sol + [0] #np.append(sol, [0])
 # =============================================================================
 #     if np.random.random()< 0.30:
 #         selection_prob = np.sum(1-prob['VesselCargo'], axis = 0)/np.sum(1-prob['VesselCargo'])
@@ -238,13 +221,13 @@ def one_ins_best(sol, costs, features, prob):
     # selected_call = np.random.choice(np.arange(1,prob['n_calls']+1), p = selection_prob)
     selected_call = np.random.choice(np.arange(1,prob['n_calls']+1))
     call_locs = np.where(Solution==selected_call)[0]
-    ZeroIndexBef = np.array(np.where(Solution == 0)[0], dtype=int)
+    ZeroIndexBef = np.array(np.where(Solution == np.array(0))[0], dtype=int)
     len_v = [ZeroIndexBef[0]] + [j-i-1 for i, j in zip(ZeroIndexBef[:-1], ZeroIndexBef[1:])]
     cur_v = len(ZeroIndexBef[ZeroIndexBef<call_locs[0]])
     if cur_v == prob['n_vehicles']:
         cur_cost = prob['Cargo'][selected_call-1,3]
     else:
-        sol_2 = np.delete(Solution, call_locs)
+        sol_2 = Solution[:call_locs[0]] + Solution[call_locs[0]+1:call_locs[1]] + Solution[call_locs[1]+1:]#np.delete(Solution, call_locs)
         cur_cost = cost4V(cur_v, Solution[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]], prob) - \
             (cost4V(cur_v, sol_2[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]-2], prob) if 
               ZeroIndexBef[cur_v]-2 >ZeroIndexBef[cur_v]-len_v[cur_v] else 0 )
@@ -254,16 +237,16 @@ def one_ins_best(sol, costs, features, prob):
     costs[-1] += prob['Cargo'][selected_call-1,3]
     best_sol = Solution
     best_features = features
-    Solution = np.delete(Solution, call_locs)
-    ZeroIndex = np.array(np.where(Solution == 0)[0], dtype=int)
-    avail_vehs = np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
+    Solution = Solution[:call_locs[0]] + Solution[call_locs[0]+1:call_locs[1]] + Solution[call_locs[1]+1:] #np.delete(Solution, call_locs)
+    ZeroIndex = np.array(np.where(Solution == np.array(0))[0], dtype=int)
+    avail_vehs = [i for i in range(prob['n_vehicles']) if prob['VesselCargo'][i,selected_call-1] == 1]+ [prob['n_vehicles']]#np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
     len_v = [ZeroIndex[0]] + [j-i-1 for i, j in zip(ZeroIndex[:-1], ZeroIndex[1:])]
     best_v = prob['n_vehicles']
     best_cost = np.inf
     for v in avail_vehs:
         if v == prob['n_vehicles']:
             if best_cost >= prob['Cargo'][selected_call-1,3]:
-                best_sol = np.insert(Solution,-1, [selected_call,selected_call])
+                best_sol = Solution[:-1] + [selected_call,selected_call] + Solution[-1:] #np.insert(Solution,-1, [selected_call,selected_call])
             continue
         for pos in range(len_v[v]+1):
 # =============================================================================
@@ -273,29 +256,34 @@ def one_ins_best(sol, costs, features, prob):
 #                 cost_v = cost4V(v, Solution[ZeroIndex[v]-len_v[v]:ZeroIndex[v]], prob)
 # =============================================================================
             cost_v = costs[v]
-            new_sol = np.insert(Solution,ZeroIndex[v]+ pos - len_v[v] , selected_call)
+            new_sol = Solution[:ZeroIndex[v]+ pos - len_v[v]] +[selected_call]+ Solution[ZeroIndex[v]+ pos - len_v[v]:]
+            #np.insert(Solution,ZeroIndex[v]+ pos - len_v[v] , selected_call)
             
             del_idx, new_cost, feasibility, c, new_features = \
                 findBestPosForDel(selected_call, v, new_sol[ZeroIndex[v]-len_v[v]:ZeroIndex[v]+1],
                                   pos, features.copy(), prob)
             if not c.startswith('F'):
                 if int(c[-1]) == pos or int(c[-1]) == del_idx:
-                    Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                    Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                    #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                     if c.startswith('T'):
                         break
                     else:
                         continue
                 else:
-                    Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                    Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                    #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                     continue
                 
             if new_cost - cost_v <= best_cost:
-                best_sol = np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
+                best_sol = new_sol[:ZeroIndex[v]-len_v[v]+ del_idx] +[selected_call]+ new_sol[ZeroIndex[v]-len_v[v]+ del_idx:]
+                #np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
                 best_cost = new_cost - cost_v
                 best_v = v
                 best_features = new_features
             else:
-               Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+               Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+               #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
 # =============================================================================
 #         if not c.startswith('F'):
 #             if int(c[-1]) == pos or int(c[-1]) == del_idx:
@@ -312,22 +300,25 @@ def one_ins_best(sol, costs, features, prob):
 
 def features_delete(features, cur_v, p_ind, d_ind):
     LoadSize, Timewindows, PortIndex, LU_Time = features
-    LoadSize[cur_v] = np.delete(LoadSize[cur_v],[p_ind, d_ind])
-    Timewindows[cur_v] = np.delete(Timewindows[cur_v],[p_ind, d_ind], axis = 1)
-    PortIndex[cur_v] = np.delete(PortIndex[cur_v],[p_ind, d_ind])
-    LU_Time[cur_v] = np.delete(LU_Time[cur_v],[p_ind, d_ind])
+    LoadSize[cur_v] = LoadSize[cur_v][:p_ind] + LoadSize[cur_v][p_ind+1:d_ind] + LoadSize[cur_v][d_ind+1:]#np.delete(LoadSize[cur_v],[p_ind, d_ind])
+    Timewindows[cur_v][0] = Timewindows[cur_v][0][:p_ind] + Timewindows[cur_v][0][p_ind+1:d_ind] + Timewindows[cur_v][0][d_ind+1:] #np.delete(Timewindows[cur_v],[p_ind, d_ind], axis = 1)
+    Timewindows[cur_v][1] = Timewindows[cur_v][1][:p_ind] + Timewindows[cur_v][1][p_ind+1:d_ind] + Timewindows[cur_v][1][d_ind+1:]
+    
+    PortIndex[cur_v] = PortIndex[cur_v][:p_ind] + PortIndex[cur_v][p_ind+1:d_ind] + PortIndex[cur_v][d_ind+1:] #np.delete(PortIndex[cur_v],[p_ind, d_ind])
+    LU_Time[cur_v] = LU_Time[cur_v][:p_ind] + LU_Time[cur_v][p_ind+1:d_ind] + LU_Time[cur_v][d_ind+1:] #np.delete(LU_Time[cur_v],[p_ind, d_ind])
     return [LoadSize, Timewindows, PortIndex, LU_Time]
 
 def features_insert(features, cur_v, p_ind, d_ind):
     LoadSize, Timewindows, PortIndex, LU_Time = features
-    LoadSize[cur_v] = np.insert(LoadSize[cur_v],[p_ind, d_ind-1], 0)
-    Timewindows[cur_v] = np.insert(Timewindows[cur_v],[p_ind, d_ind-1], np.zeros(2), axis = 1)
-    PortIndex[cur_v] = np.insert(PortIndex[cur_v],[p_ind, d_ind-1], 0)
-    LU_Time[cur_v] = np.insert(LU_Time[cur_v],[p_ind, d_ind-1], 0)
+    LoadSize[cur_v] = LoadSize[cur_v][:p_ind] + [0] + LoadSize[cur_v][p_ind:d_ind] + [0] + LoadSize[cur_v][d_ind:]#np.insert(LoadSize[cur_v],[p_ind, d_ind-1], 0)
+    Timewindows[cur_v][0] = Timewindows[cur_v][0][:p_ind] + [0] + Timewindows[cur_v][0][p_ind:d_ind] + [0] + Timewindows[cur_v][0][d_ind:] #np.insert(Timewindows[cur_v],[p_ind, d_ind-1], np.zeros(2), axis = 1)
+    Timewindows[cur_v][1] = Timewindows[cur_v][1][:p_ind] + [0] + Timewindows[cur_v][1][p_ind:d_ind] + [0] + Timewindows[cur_v][1][d_ind:]
+    PortIndex[cur_v] = PortIndex[cur_v][:p_ind] + [0] + PortIndex[cur_v][p_ind:d_ind] + [0] + PortIndex[cur_v][d_ind:] #np.insert(PortIndex[cur_v],[p_ind, d_ind-1], 0)
+    LU_Time[cur_v] = LU_Time[cur_v][:p_ind] + [0] + LU_Time[cur_v][p_ind:d_ind] + [0] + LU_Time[cur_v][d_ind:] #np.insert(LU_Time[cur_v],[p_ind, d_ind-1], 0)
     return [LoadSize, Timewindows, PortIndex, LU_Time]
 
 def multi_ins_new(sol, costs, features, prob, rm_size = 3):
-    Solution = np.append(sol, [0])
+    Solution = sol + [0] #np.append(sol, [0])
     
     # selection_prob = np.sum(prob['VesselCargo'], axis = 0)/np.sum(prob['VesselCargo'])
     selected_calls = np.random.choice(np.arange(1,prob['n_calls']+1),
@@ -336,7 +327,7 @@ def multi_ins_new(sol, costs, features, prob, rm_size = 3):
                                       # p = selection_prob
                                      )
     sel_loc = np.array([np.where(Solution == selected_calls[i])[0] for i in range(rm_size)])
-    ZeroIndexBef = np.array(np.where(Solution == 0)[0], dtype=int)
+    ZeroIndexBef = np.array(np.where(Solution == np.array(0))[0], dtype=int)
     len_v = [ZeroIndexBef[0]] + [j-i-1 for i, j in zip(ZeroIndexBef[:-1], ZeroIndexBef[1:])]
     for c_id, call in enumerate(selected_calls):
         # call_locs = np.where(Solution==call)[0]
@@ -346,13 +337,13 @@ def multi_ins_new(sol, costs, features, prob, rm_size = 3):
         #cur_v = len(ZeroIndexBef[ZeroIndexBef<call_locs[0]])
         if cur_v == prob['n_vehicles']:
             best_cost = prob['Cargo'][call-1,3]
-            Solution = np.delete(Solution, sel_loc[c_id])
+            Solution = Solution[:sel_loc[c_id][0]] + Solution[sel_loc[c_id][0]+1:sel_loc[c_id][1]] + Solution[sel_loc[c_id][1]+1:]#np.delete(Solution, sel_loc[c_id])
             ZeroIndexBef[cur_v:] -= 2
             len_v[cur_v] -= 2
             sel_loc[sel_loc>sel_loc[c_id][1]]-=1
             sel_loc[sel_loc>sel_loc[c_id][0]]-=1
         else:
-            sol_2 = np.delete(Solution, sel_loc[c_id])
+            sol_2 = Solution[:sel_loc[c_id][0]] + Solution[sel_loc[c_id][0]+1:sel_loc[c_id][1]] + Solution[sel_loc[c_id][1]+1:]#np.delete(Solution, sel_loc[c_id])
             best_cost = cost4V(cur_v, Solution[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]], prob) - \
                 (cost4V(cur_v, sol_2[ZeroIndexBef[cur_v]-len_v[cur_v]:ZeroIndexBef[cur_v]-2], prob) if 
                   ZeroIndexBef[cur_v]-2 >ZeroIndexBef[cur_v]-len_v[cur_v] else 0 )
@@ -369,43 +360,53 @@ def multi_ins_new(sol, costs, features, prob, rm_size = 3):
     # ZeroIndexBef = np.array(np.where(Solution == 0)[0], dtype=int)
     # len_v = [ZeroIndexBef[0]] + [j-i-1 for i, j in zip(ZeroIndexBef[:-1], ZeroIndexBef[1:])]
     for k in range(rm_size):
-        best_costs = np.ones(len(selected_calls))*np.inf
-        best_sols = np.empty((len(selected_calls),len(Solution)+2), dtype=int)
-        best_vs = np.ones((len(selected_calls)), dtype=int)*prob['n_vehicles']
-        # best_features = 
-        ZeroIndex = np.array(np.where(Solution == 0)[0], dtype=int)
+        best_costs = [np.inf for i in range(len(selected_calls))]#np.ones(len(selected_calls))*np.inf
+        best_sols = [[] for i in range(len(selected_calls)) ]#np.empty((len(selected_calls),len(Solution)+2), dtype=int)
+        best_vs = [[] for i in range(prob['n_vehicles'])]#np.ones((len(selected_calls)), dtype=int)*prob['n_vehicles']
+        best_features = [features.copy() for i in range(len(selected_calls))]
+        ZeroIndex = np.array(np.where(Solution == np.array(0))[0], dtype=int)
         len_v = [ZeroIndex[0]] + [j-i-1 for i, j in zip(ZeroIndex[:-1], ZeroIndex[1:])]
         for s, selected_call in enumerate(selected_calls):
-            avail_vehs = np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
+            avail_vehs = [i for i in range(prob['n_vehicles']) if prob['VesselCargo'][i,selected_call-1] == 1]+ [prob['n_vehicles']]#np.append(np.where(prob['VesselCargo'][:,selected_call-1] == 1)[0], prob['n_vehicles'])
             # best_costs[s] = prob['Cargo'][selected_call-1,3]
             for v in avail_vehs:
                 if v == prob['n_vehicles']:
                     if best_costs[s] >= prob['Cargo'][selected_call-1,3]:
-                        best_sols[s] = np.insert(Solution,-1, [selected_call,selected_call])
+                        best_sols[s] = Solution[:-1] + [selected_call,selected_call] + Solution[-1:]#np.insert(Solution,-1, [selected_call,selected_call])
+                        best_vs[s] = v
                     continue
                 for pos in range(len_v[v]+1):
                     cost_v = costs[v]
-                    new_sol = np.insert(Solution,ZeroIndex[v]+ pos - len_v[v] , selected_call)
-                    del_idx, new_cost, feasibility, c = findBestPosForDel(selected_call, v, new_sol[ZeroIndex[v]-len_v[v]:ZeroIndex[v]+1], pos, prob)
+                    new_sol = Solution[:ZeroIndex[v]+ pos - len_v[v]] +[selected_call]+ Solution[ZeroIndex[v]+ pos - len_v[v]:]
+                    #np.insert(Solution,ZeroIndex[v]+ pos - len_v[v] , selected_call)
+                    del_idx, new_cost, feasibility, c, new_features = \
+                        findBestPosForDel(selected_call, v, 
+                                          new_sol[ZeroIndex[v]-len_v[v]:ZeroIndex[v]+1],
+                                          pos, features.copy(), prob)
                     if not c.startswith('F'):
                         if int(c[-1]) == pos or int(c[-1]) == del_idx:
-                            Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                            Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                            #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                             if c.startswith('T'):
                                 break
                             else:
                                 continue
                         else:
-                            Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
+                            Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                            #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
                             continue
                     if new_cost - cost_v < best_costs[s]:
-                        best_sols[s] = np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
+                        best_sols[s] = new_sol[:ZeroIndex[v]-len_v[v]+ del_idx] +[selected_call]+ new_sol[ZeroIndex[v]-len_v[v]+ del_idx:]
+                        #np.insert(new_sol,ZeroIndex[v]-len_v[v]+ del_idx, selected_call)
                         best_costs[s] = new_cost - cost_v
                         best_vs[s] = v
+                        best_features[s] = new_features
                     else:
-                       Solution = np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
-
+                       Solution = new_sol[:ZeroIndex[v]+ pos - len_v[v]] + new_sol[ZeroIndex[v]+ pos - len_v[v]+1:]
+                       #np.delete(new_sol, ZeroIndex[v]+ pos - len_v[v])
         best_idx = np.argmin(best_costs)
-        Solution = best_sols[best_idx]        
+        Solution = best_sols[best_idx]
+        features = best_features[best_idx].copy()
         if best_vs[best_idx] != prob['n_vehicles']:
             costs[best_vs[best_idx]] += best_costs[best_idx]
             costs[-1] -= prob['Cargo'][selected_calls[best_idx]-1,3]
@@ -424,20 +425,28 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
     incumbent = init_sol
     best_sol = init_sol
     cost_incumb = init_cost#cost_func(incumbent, prob)
-    costs = np.concatenate((np.zeros(prob['n_vehicles']), [init_cost]))
-    LoadSize = {i:np.array([]) for i in range(prob['n_vehicles'])}
-    Timewindows = {i:np.array([[],[]]) for i in range(prob['n_vehicles'])}
-    PortIndex = {i:np.array([],dtype=int) for i in range(prob['n_vehicles'])}
-    LU_Time = {i:np.array([]) for i in range(prob['n_vehicles'])}
+    costs = [0 for i in range(prob['n_vehicles'])]+ [init_cost]
+    LoadSize = [[] for i in range(prob['n_vehicles'])]
+    Timewindows = [[[],[]] for i in range(prob['n_vehicles'])]
+    PortIndex = [[] for i in range(prob['n_vehicles'])]
+    LU_Time = [[] for i in range(prob['n_vehicles'])]
+# =============================================================================
+#     LoadSize = {i:np.array([]) for i in range(prob['n_vehicles'])}
+#     Timewindows = {i:np.array([[],[]]) for i in range(prob['n_vehicles'])}
+#     PortIndex = {i:np.array([],dtype=int) for i in range(prob['n_vehicles'])}
+#     LU_Time = {i:np.array([]) for i in range(prob['n_vehicles'])}
+# =============================================================================
     features = [LoadSize, Timewindows, PortIndex, LU_Time]
     best_cost = cost_incumb 
     delta = []
     for w in range(warm_up):
-        # if w == 7:
-        # print(w)
+# =============================================================================
+#         if w == 6:
+#             print(w)
+# =============================================================================
         operator = np.random.choice(operators, replace=True, p=probability )
         new_sol, new_costs, new_features = operator(incumbent, deepcopy(costs), deepcopy(features), prob)
-        new_cost = new_costs.sum()
+        new_cost = sum(new_costs)
         delta_E = new_cost - cost_incumb
         feasiblity, c = True, 'Feasible'
         if feasiblity and delta_E < 0:
@@ -467,7 +476,7 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
         operator = np.random.choice(operators, replace=True, p=probability )
         
         new_sol, new_costs, new_features = operator(incumbent, deepcopy(costs), deepcopy(features), prob)
-        new_cost = new_costs.sum()
+        new_cost = sum(new_costs)
         delta_E = new_cost - cost_incumb
         feasiblity, c = True, 'Feasible'
         if feasiblity and delta_E < 0:
@@ -558,16 +567,16 @@ def localSearch(init_sol, probability, operators, cost_func, prob, warm_up = Non
 #                             'running_time': float}).set_index('problem').to_csv('results'+str(5)+'.csv')
 # =============================================================================
 np.random.seed(23)
-prob = load_problem( "..//..//Data//" +'Call_18_Vehicle_5'+ ".txt")
+prob = load_problem( "..//..//Data//" +'Call_7_Vehicle_3'+ ".txt")
 # # # # findBestPosForDel(2,1,np.array([2, 9, 9]),prob)
 # sol = np.array([4, 4, 2, 2, 0, 7, 7, 0, 1, 5, 5, 3, 3, 1, 0, 6, 6 ])
-sol = np.array([0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)])
+sol = [0]*prob['n_vehicles'] + [i for i in range(1,prob['n_calls']+1) for j in range(2)]
 init_cost = prob['Cargo'][:,3].sum()#cost_function(sol, prob)
 # a = one_ins_best(sol, prob)
 start = time()
 a = SA(sol,init_cost, 
-        [1/2,1/2,0],
-        # [1/3,1/3,1/3],
+        # [1/2,1/2,0],
+        [1/3,1/3,1/3],
         [
         one_ins_best,
                 one_ins_first_best, 
@@ -583,3 +592,7 @@ a = SA(sol,init_cost,
 print(time()-start)
 # two_ex(sol, prob)
 
+
+# =============================================================================
+# 
+# =============================================================================
