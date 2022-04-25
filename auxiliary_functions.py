@@ -12,7 +12,7 @@ def cost4V(Vnum, Vcalls, problem):
     TravelCost = problem['TravelCost']
     PortCost = problem['PortCost']
     
-    Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))]
+    # Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))]
     
     sortRout = np.sort(Vcalls, kind='mergesort')
     I = np.argsort(Vcalls, kind='mergesort')
@@ -58,36 +58,6 @@ def cur_cost4V(Vnum, Vcalls, Vcalls_aft, p_ind, d_ind, PortInd, problem):
                         (TravelCost[Vnum, PortIndex[d_ind], PortIndex[d_ind+1]]if d_ind != len(Vcalls)-1 else 0)-\
                      (TravelCost[Vnum, PortIndex[p_ind-1], PortIndex[p_ind+1]]if p_ind != 0 and p_ind+1 != d_ind else TravelCost[Vnum, PortIndex[p_ind-1], PortIndex[p_ind+2]] if p_ind != 0 and d_ind != len(Vcalls)-1 else 0)+\
                     (- TravelCost[Vnum, PortIndex[d_ind-1], PortIndex[d_ind+1]] if d_ind != len(Vcalls)-1 and d_ind-1 != p_ind else 0)
-        # if p_ind == 0:
-#             FirstVisitCost_diff = FirstTravelCost[Vnum, int(Cargo[Vcalls[0], 0] - 1)] - FirstTravelCost[Vnum, int(Cargo[Vcalls_aft[0], 0] - 1)]
-#             Vcalls_changes = Vcalls[p_ind:p_ind+2] + Vcalls[d_ind-1:d_ind+2]
-#             CostInPorts = PortCost[Vnum, Vcalls_changes[0]]
-#             if len(Vcalls_changes) == 4:
-#                 RouteTravelCost_diff = TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[1], 0] - 1)] +\
-#                     TravelCost[Vnum,int(Cargo[Vcalls_changes[2], 1] - 1), int(Cargo[Vcalls_changes[3], 0] - 1)]
-#             else:
-#                 RouteTravelCost_diff = TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[1], 0] - 1)] +\
-#                     TravelCost[Vnum,int(Cargo[Vcalls_changes[2], 1] - 1), int(Cargo[Vcalls_changes[3], 0] - 1)] + \
-#                         TravelCost[Vnum,int(Cargo[Vcalls_changes[3], 1] - 1), int(Cargo[Vcalls_changes[4], 0] - 1)] -\
-#                             TravelCost[Vnum,int(Cargo[Vcalls_changes[2], 1] - 1), int(Cargo[Vcalls_changes[4], 0] - 1)]
-#         elif d_ind == len(Vcalls)-1:
-#             FirstVisitCost_diff = 0
-#             Vcalls_changes = Vcalls[p_ind-1:p_ind+2] + Vcalls[d_ind-1:d_ind+2]
-#             CostInPorts = PortCost[Vnum, Vcalls_changes[-1]]
-#             RouteTravelCost_diff = TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[1], 0] - 1)] +\
-#                 TravelCost[Vnum,int(Cargo[Vcalls_changes[1], 1] - 1), int(Cargo[Vcalls_changes[2], 0] - 1)] + \
-#                     TravelCost[Vnum,int(Cargo[Vcalls_changes[3], 1] - 1), int(Cargo[Vcalls_changes[4], 0] - 1)] -\
-#                         TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[2], 0] - 1)]
-#         else:
-#             FirstVisitCost_diff = 0
-#             Vcalls_changes = Vcalls[p_ind-1:p_ind+2] + Vcalls[d_ind-1:d_ind+2]
-#             CostInPorts = PortCost[Vnum, Vcalls_changes[1]]
-#             RouteTravelCost_diff = TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[1], 0] - 1)] +\
-#                 TravelCost[Vnum,int(Cargo[Vcalls_changes[1], 1] - 1), int(Cargo[Vcalls_changes[2], 0] - 1)] + \
-#                     TravelCost[Vnum,int(Cargo[Vcalls_changes[3], 1] - 1), int(Cargo[Vcalls_changes[4], 0] - 1)] + \
-#                         TravelCost[Vnum,int(Cargo[Vcalls_changes[4], 1] - 1), int(Cargo[Vcalls_changes[5], 0] - 1)]-\
-#                             TravelCost[Vnum,int(Cargo[Vcalls_changes[0], 1] - 1), int(Cargo[Vcalls_changes[2], 0] - 1)]-\
-#                                 TravelCost[Vnum,int(Cargo[Vcalls_changes[3], 1] - 1), int(Cargo[Vcalls_changes[5], 0] - 1)]
     return sum([FirstVisitCost_diff, RouteTravelCost_diff, CostInPorts])
 
 
@@ -177,9 +147,7 @@ def findBestPosForDel(call, Vnum, Vcalls, pos, features, prob):
         
         new_feasibility, new_c, new_cost, new_features = cap_TW_4V(Vnum, new_sol, updated_features, PickIndex, i, prob)
         if new_c=='Feasible':
-            
-            # if i == len(Vcalls):
-            #     return i, new_cost, new_feasibility, new_c, new_features
+
             if new_cost < best_cost:
                 c = new_c
                 feasibility = new_feasibility
@@ -214,3 +182,76 @@ def features_insert(features, cur_v, p_ind, d_ind):
     PortIndex[cur_v] = PortIndex[cur_v][:p_ind] + [0] + PortIndex[cur_v][p_ind:d_ind] + [0] + PortIndex[cur_v][d_ind:]
     LU_Time[cur_v] = LU_Time[cur_v][:p_ind] + [0] + LU_Time[cur_v][p_ind:d_ind] + [0] + LU_Time[cur_v][d_ind:]
     return [LoadSize, Timewindows, PortIndex, LU_Time]
+
+def v_feas_check(features, v, problem):
+    VesselCapacity = problem['VesselCapacity']
+    TravelTime = problem['TravelTime']
+    FirstTravelTime = problem['FirstTravelTime']
+    LoadSize, Timewindows, PortIndex, LU_Time = features
+    Diag = TravelTime[v, PortIndex[v][:-1], PortIndex[v][1:]]
+    FirstVisitTime = FirstTravelTime[v, PortIndex[v][0]]
+    
+    RouteTravelTime = np.hstack((FirstVisitTime, Diag.flatten()))
+    currentTime = 0
+    NoDoubleCallOnVehicle = len(LoadSize[v])
+    ArriveTime = [0 for i in range(NoDoubleCallOnVehicle)]
+    LS_cumsum = np.cumsum(LoadSize[v])
+    for j in range(NoDoubleCallOnVehicle):
+        if VesselCapacity[v] - LS_cumsum[j] < 0:
+            return False#, 'Capacity exceeded at call {}'.format(j), np.inf, features
+        ArriveTime[j] = max(currentTime + RouteTravelTime[j], Timewindows[v][0][j])
+        if ArriveTime[j] > Timewindows[v][1][j]:
+            return False#, 'Time window exceeded at call {}'.format(j), np.inf, features
+        currentTime = ArriveTime[j] + LU_Time[v][j]
+    return True#, 'Feasible', CostInPorts + RouteTravelCost, features
+
+def swap_features_costs(features, costs, v1, v2, v1_calls, v2_calls, problem):
+    LoadingTime = problem['LoadingTime']
+    UnloadingTime = problem['UnloadingTime']
+    Cargo = problem['Cargo']
+    FirstTravelCost = problem['FirstTravelCost']
+    TravelCost = problem['TravelCost']
+    PortCost = problem['PortCost']
+    
+    LoadSize, Timewindows, PortIndex, LU_Time = features
+    LoadSize = LoadSize[:v1] + LoadSize[v2:v2+1]+ LoadSize[v1+1:v2] + LoadSize[v1:v1+1]+ LoadSize[v2+1:]
+    Timewindows = Timewindows[:v1] + Timewindows[v2:v2+1]+ Timewindows[v1+1:v2] + Timewindows[v1:v1+1]+ Timewindows[v2+1:]
+    PortIndex = PortIndex[:v1] + PortIndex[v2:v2+1]+ PortIndex[v1+1:v2] + PortIndex[v1:v1+1]+ PortIndex[v2+1:]
+    if len(v1_calls)>0:
+        v1_calls = [v1_calls[i]-1 for i in range(len(v1_calls))]
+        sortRout1 = np.sort(v1_calls, kind='mergesort')
+        I1 = np.argsort(v1_calls, kind='mergesort')
+        Indx1 = np.argsort(I1, kind='mergesort')
+        
+        LU_Time[v2] = UnloadingTime[v1, sortRout1]
+        LU_Time[v2][::2] = LoadingTime[v1, sortRout1[::2]]
+        LU_Time[v2] = LU_Time[v2][Indx1].tolist()
+
+        Diag = TravelCost[v2, PortIndex[v2][:-1], PortIndex[v2][1:]]
+        FirstVisitCost = FirstTravelCost[v2, int(Cargo[v1_calls[0], 0] - 1)]
+        RouteTravelCost = np.sum(np.hstack((FirstVisitCost, Diag.flatten())))
+        CostInPorts = np.sum(PortCost[v2, v1_calls]) / 2
+        costs[v2] = CostInPorts + RouteTravelCost
+    else:
+        LU_Time[v2] = []
+        costs[v2] = 0.0
+    if len(v2_calls)>0:
+        v2_calls = [v2_calls[i]-1 for i in range(len(v2_calls))]
+        sortRout2 = np.sort(v2_calls, kind='mergesort')
+        I2 = np.argsort(v2_calls, kind='mergesort')
+        Indx2 = np.argsort(I2, kind='mergesort')
+    
+        LU_Time[v1] = UnloadingTime[v2, sortRout2]
+        LU_Time[v1][::2] = LoadingTime[v2, sortRout2[::2]]
+        LU_Time[v1] = LU_Time[v1][Indx2].tolist()
+        
+        Diag = TravelCost[v1, PortIndex[v1][:-1], PortIndex[v1][1:]]
+        FirstVisitCost = FirstTravelCost[v1, int(Cargo[v2_calls[0], 0] - 1)]
+        RouteTravelCost = np.sum(np.hstack((FirstVisitCost, Diag.flatten())))
+        CostInPorts = np.sum(PortCost[v1, v2_calls]) / 2
+        costs[v1] = CostInPorts + RouteTravelCost
+    else:
+        LU_Time[v1] = []
+        costs[v1] = 0.0
+    
+    return [LoadSize, Timewindows, PortIndex, LU_Time], costs

@@ -5,7 +5,7 @@ Created on Thu Mar 10 10:43:27 2022
 @author: erfan
 """
 from pdp_utils import load_problem, feasibility_check, cost_function
-from operators import one_ins_best, one_ins_first_best, multi_ins_new
+from operators import one_ins_best, one_ins_first_best, multi_ins_new, multi_ins_rand,v_swap
 from auxiliary_functions import copy_costs, copy_features
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ from time import time
 from copy import deepcopy
 
 
-def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 100):
+def SA(init_sol, init_cost, probability, operators, prob, rng, T_f = 0.1, warm_up = 100):
     
     incumbent = init_sol
     best_sol = init_sol
@@ -26,13 +26,19 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
     features = [LoadSize, Timewindows, PortIndex, LU_Time]
     last_improvement = 0
     best_cost = cost_incumb 
-    delta = []
+    delta = [0]
     deltas = []
     for w in range(warm_up):
-        if w == 38:
-            print('here')
-        operator = np.random.choice(operators, replace=True, p=probability )
-        new_sol, new_costs, new_features = operator(incumbent, copy_costs(costs), copy_features(features), prob)
+        # print(w)
+        
+# =============================================================================
+#         if w == 16:
+#             print('here')
+# =============================================================================
+        operator = rng.choice(operators, replace=True, p=probability )
+        new_sol, new_costs, new_features = operator(incumbent, copy_costs(costs), copy_features(features), rng, prob)
+        # if not feasibility_check(new_sol, prob)[0]:
+        #     print(w, operator)
         new_cost = sum(new_costs)
         delta_E = new_cost - cost_incumb
         deltas.append(delta_E)
@@ -48,13 +54,16 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
                 last_improvement = w
                 
         elif feasiblity:
-            if np.random.uniform() < 0.8:
+            if rng.uniform() < 0.8:
                 incumbent = new_sol
                 cost_incumb = new_cost
                 costs = copy_costs(new_costs)
                 features = copy_features(new_features)
-            delta.append(delta_E)
-    delta_avg = np.mean(delta)
+            if delta_E>0:
+                delta.append(delta_E)
+        if w == warm_up-1 and np.mean(delta) == 0:
+            warm_up += 100
+    delta_avg = np.mean(delta[1:])
     if delta_avg == 0.0:
         delta_avg = new_cost/warm_up
     T_0 = -delta_avg / np.log(0.8)
@@ -63,8 +72,12 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
     Ts = [T]
     Ps = [np.exp(-delta_avg/T)]
     for itr in range(10000-warm_up):
-        operator = np.random.choice(operators, replace=True, p=probability )
-        new_sol, new_costs, new_features = operator(incumbent, copy_costs(costs), copy_features(features), prob)
+        # if (itr + warm_up) == 1225:
+        #     print('here')
+        operator = rng.choice(operators, replace=True, p=probability )
+        new_sol, new_costs, new_features = operator(incumbent, copy_costs(costs), copy_features(features), rng, prob)
+        # if not feasibility_check(new_sol, prob)[0]:
+        #     print(itr + warm_up, operator)
         new_cost = sum(new_costs)
         delta_E = new_cost - cost_incumb
         deltas.append(delta_E)
@@ -83,7 +96,7 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
         elif feasiblity:
             prbb = np.exp(-delta_E/T)
             Ps.append(np.exp(-delta_E/T))
-            if np.random.uniform() < prbb:
+            if rng.uniform() < prbb:
         # and np.random.uniform() < np.exp(-delta_E/T):
                 incumbent = new_sol
                 cost_incumb = new_cost
@@ -94,20 +107,7 @@ def SA(init_sol, init_cost, probability, operators, prob, T_f = 0.1, warm_up = 1
             
         T *= alpha
         Ts.append(T)
-    return best_sol, best_cost, last_improvement, Ps, Ts,deltas
-
-def localSearch(init_sol, probability, operators, cost_func, prob, warm_up = None):
-    best_sol = init_sol
-    best_cost = cost_func(best_sol, prob)
-    for i in range(10000):
-        operator = np.random.choice(operators, replace=True, p=probability )
-        new_sol = operator(best_sol,prob)
-        feasiblity, c = feasibility_check(new_sol, prob)
-        new_cost = cost_func(new_sol, prob)
-        if feasiblity and new_cost < best_cost:
-            best_sol = new_sol
-            best_cost = new_cost
-    return best_sol, best_cost
+    return best_sol, best_cost, last_improvement, Ps, Ts, deltas
 
 if __name__ == '__main__':
     problems = [
@@ -119,16 +119,18 @@ if __name__ == '__main__':
                 # 'Call_300_Vehicle_90'
                 ]
     operators = [
-        one_ins_best,
+        # one_ins_best,
         one_ins_first_best, 
-        multi_ins_new
+        multi_ins_new,
+        multi_ins_rand,
+        # v_swap
         ]
     probabilities = [
-        # [1/len(operators) for i in operators],
-        [0,0,1]
+        [1/len(operators) for i in operators],
+        # [0,0,1]
         ]
     
-    repeat = 1
+    repeat = 10
     info = pd.DataFrame(columns=['problem','probability', 'solution', 'average_objective', 'best_objective',
                                   'improvement', 'best_objs', 'last_improvement', 'running_time', 'Ps'])
     for j, p in enumerate(problems):
@@ -143,9 +145,9 @@ if __name__ == '__main__':
             Ts = [[] for i in range(repeat)]
             deltas = [[] for i in range(repeat)]
             for i in range(repeat ):
-                np.random.seed(23+i)
+                rng = np.random.default_rng(23+i)#np.random.seed(23+i)
                 # print('seed', 23+i)
-                best_sol[i], best_cost[i], last_improvement[i], Ps[i], Ts[i],deltas[i] = SA(initial_sol, init_cost, prb, operators, prob, warm_up = 100)
+                best_sol[i], best_cost[i], last_improvement[i], Ps[i], Ts[i],deltas[i] = SA(initial_sol, init_cost, prb, operators, prob, rng, warm_up = 100)
                 # print(best_sol[i],best_cost[i])
             info = info.append({'problem': str(j),
                                 'probability': prb,
