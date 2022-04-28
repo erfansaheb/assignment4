@@ -12,7 +12,7 @@ def cost4V(Vnum, Vcalls, problem):
     TravelCost = problem['TravelCost']
     PortCost = problem['PortCost']
     
-    # Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))]
+    Vcalls = [Vcalls[i]-1 for i in range(len(Vcalls))]
     
     sortRout = np.sort(Vcalls, kind='mergesort')
     I = np.argsort(Vcalls, kind='mergesort')
@@ -198,12 +198,12 @@ def v_feas_check(features, v, problem):
     LS_cumsum = np.cumsum(LoadSize[v])
     for j in range(NoDoubleCallOnVehicle):
         if VesselCapacity[v] - LS_cumsum[j] < 0:
-            return False#, 'Capacity exceeded at call {}'.format(j), np.inf, features
+            return False
         ArriveTime[j] = max(currentTime + RouteTravelTime[j], Timewindows[v][0][j])
         if ArriveTime[j] > Timewindows[v][1][j]:
-            return False#, 'Time window exceeded at call {}'.format(j), np.inf, features
+            return False
         currentTime = ArriveTime[j] + LU_Time[v][j]
-    return True#, 'Feasible', CostInPorts + RouteTravelCost, features
+    return True
 
 def swap_features_costs(features, costs, v1, v2, v1_calls, v2_calls, problem):
     LoadingTime = problem['LoadingTime']
